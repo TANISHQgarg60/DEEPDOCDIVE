@@ -18,9 +18,74 @@ from langchain_core.chat_history import BaseChatMessageHistory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 
-# Fixed imports - these are in langchain_core, not langchain.chains
-from langchain.chains import create_history_aware_retriever, create_retrieval_chain
-from langchain.chains.combine_documents import create_stuff_documents_chain
+# Fixed imports - using the correct module paths for newer LangChain versions
+try:
+    # Try newer import path first
+    from langchain.chains.history_aware_retriever import create_history_aware_retriever
+    from langchain.chains.retrieval import create_retrieval_chain
+    from langchain.chains.combine_documents import create_stuff_documents_chain
+except ImportError:
+    # Fallback to alternative import locations
+    try:
+        from langchain_core.runnables import RunnablePassthrough
+        from langchain_core.output_parsers import StrOutputParser
+        
+        # We'll need to create custom implementations if imports fail
+        def create_history_aware_retriever(llm, retriever, prompt):
+            """Fallback implementation"""
+            from langchain_core.runnables import RunnableBranch, RunnableLambda
+            
+            def has_chat_history(input_dict):
+                return len(input_dict.get("chat_history", [])) > 0
+            
+            contextualized_question = (
+                prompt 
+                | llm 
+                | StrOutputParser()
+            )
+            
+            return RunnableBranch(
+                (
+                    RunnableLambda(has_chat_history),
+                    contextualized_question | retriever
+                ),
+                RunnableLambda(lambda x: x["input"]) | retriever
+            )
+        
+        def create_retrieval_chain(retriever, combine_docs_chain):
+            """Fallback implementation"""
+            from langchain_core.runnables import RunnableParallel, RunnablePassthrough
+            
+            return RunnableParallel(
+                {
+                    "context": retriever,
+                    "input": RunnablePassthrough()
+                }
+            ) | combine_docs_chain
+        
+        def create_stuff_documents_chain(llm, prompt):
+            """Fallback implementation"""
+            from langchain_core.runnables import RunnableParallel
+            
+            def format_docs(docs):
+                return "\n\n".join(doc.page_content for doc in docs)
+            
+            return (
+                RunnableParallel(
+                    {
+                        "context": lambda x: format_docs(x["context"]),
+                        "input": lambda x: x["input"],
+                        "chat_history": lambda x: x.get("chat_history", [])
+                    }
+                )
+                | prompt
+                | llm
+                | StrOutputParser()
+                | (lambda x: {"answer": x})
+            )
+    except Exception as e:
+        st.error(f"Failed to import required LangChain components: {e}")
+        st.stop()
 
 
 # Page configuration
