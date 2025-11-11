@@ -183,10 +183,10 @@ def create_vector_store(pdf_files, _embeddings):
 def create_conversation_chain(vector_store, groq_api_key):
     """Create conversational RAG chain"""
     try:
-        # Initialize Groq LLM
+        # Initialize Groq LLM with updated model
         llm = ChatGroq(
             groq_api_key=groq_api_key,
-            model_name="gemma2-9b-it",
+            model_name="llama-3.3-70b-versatile",  # Updated to supported model
             temperature=0.1
         )
         
@@ -257,7 +257,7 @@ with st.sidebar:
     groq_api_key = st.text_input(
         "Groq API Key",
         type="password",
-        help="Enter your Groq API key to use the Gemma2-9b-It model"
+        help="Enter your Groq API key to use the Llama 3.3 70B model"
     )
     
     # Session ID input
@@ -316,7 +316,7 @@ with st.sidebar:
         st.write("""
         **Models Used:**
         - Embeddings: sentence-transformers/all-MiniLM-L6-v2
-        - LLM: Gemma2-9b-It (via Groq)
+        - LLM: Llama 3.3 70B Versatile (via Groq)
         - Vector Store: FAISS (in-memory)
         
         **Text Processing:**
